@@ -1,0 +1,4 @@
+# ninja log v5
+1	3269	0	/project/6054857/zvictys/HyperRIM/code/dciknn_cuda/build/temp.linux-x86_64-3.6/src/util_kernel.o	ff3d8f2df0f5d73f
+2	13358	0	/project/6054857/zvictys/HyperRIM/code/dciknn_cuda/build/temp.linux-x86_64-3.6/src/dci_cuda_kernel.o	7b8ba8531c642746
+0	31053	0	/project/6054857/zvictys/HyperRIM/code/dciknn_cuda/build/temp.linux-x86_64-3.6/src/dci_cuda.o	a9637ec1d2e1d3e3

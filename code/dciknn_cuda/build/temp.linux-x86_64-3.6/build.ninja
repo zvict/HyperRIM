@@ -1,0 +1,28 @@
+ninja_required_version = 1.3
+cxx = c++
+nvcc = /cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2016.4/cuda/10.0.130/bin/nvcc
+
+cflags = -pthread -B /home/zvictys/anaconda3/envs/hyperrim/compiler_compat -Wl,--sysroot=/ -Wsign-compare -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes -fPIC -I/project/6054857/zvictys/HyperRIM/code/dciknn_cuda/include -I/home/zvictys/anaconda3/envs/hyperrim/lib/python3.6/site-packages/torch/include -I/home/zvictys/anaconda3/envs/hyperrim/lib/python3.6/site-packages/torch/include/torch/csrc/api/include -I/home/zvictys/anaconda3/envs/hyperrim/lib/python3.6/site-packages/torch/include/TH -I/home/zvictys/anaconda3/envs/hyperrim/lib/python3.6/site-packages/torch/include/THC -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2016.4/cuda/10.0.130/include -I/home/zvictys/anaconda3/envs/hyperrim/include/python3.6m -c
+post_cflags = -DTORCH_API_INCLUDE_EXTENSION_H '-DPYBIND11_COMPILER_TYPE="_gcc"' '-DPYBIND11_STDLIB="_libstdcpp"' '-DPYBIND11_BUILD_ABI="_cxxabi1011"' -DTORCH_EXTENSION_NAME=_dci_cuda -D_GLIBCXX_USE_CXX11_ABI=0 -std=c++14
+cuda_cflags = -I/project/6054857/zvictys/HyperRIM/code/dciknn_cuda/include -I/home/zvictys/anaconda3/envs/hyperrim/lib/python3.6/site-packages/torch/include -I/home/zvictys/anaconda3/envs/hyperrim/lib/python3.6/site-packages/torch/include/torch/csrc/api/include -I/home/zvictys/anaconda3/envs/hyperrim/lib/python3.6/site-packages/torch/include/TH -I/home/zvictys/anaconda3/envs/hyperrim/lib/python3.6/site-packages/torch/include/THC -I/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx2/Compiler/intel2016.4/cuda/10.0.130/include -I/home/zvictys/anaconda3/envs/hyperrim/include/python3.6m -c
+cuda_post_cflags = -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options ''"'"'-fPIC'"'"'' -DTORCH_API_INCLUDE_EXTENSION_H '-DPYBIND11_COMPILER_TYPE="_gcc"' '-DPYBIND11_STDLIB="_libstdcpp"' '-DPYBIND11_BUILD_ABI="_cxxabi1011"' -DTORCH_EXTENSION_NAME=_dci_cuda -D_GLIBCXX_USE_CXX11_ABI=0 -gencode=arch=compute_70,code=sm_70 -std=c++14
+ldflags = 
+
+rule compile
+  command = $cxx -MMD -MF $out.d $cflags -c $in -o $out $post_cflags
+  depfile = $out.d
+  deps = gcc
+
+rule cuda_compile
+  command = $nvcc $cuda_cflags -c $in -o $out $cuda_post_cflags
+
+
+
+build /project/6054857/zvictys/HyperRIM/code/dciknn_cuda/build/temp.linux-x86_64-3.6/./src/dci_cuda.o: compile /project/6054857/zvictys/HyperRIM/code/dciknn_cuda/src/dci_cuda.cpp
+build /project/6054857/zvictys/HyperRIM/code/dciknn_cuda/build/temp.linux-x86_64-3.6/./src/dci_cuda_kernel.o: cuda_compile /project/6054857/zvictys/HyperRIM/code/dciknn_cuda/src/dci_cuda_kernel.cu
+build /project/6054857/zvictys/HyperRIM/code/dciknn_cuda/build/temp.linux-x86_64-3.6/./src/util_kernel.o: cuda_compile /project/6054857/zvictys/HyperRIM/code/dciknn_cuda/src/util_kernel.cu
+
+
+
+
+
