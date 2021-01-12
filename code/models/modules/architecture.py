@@ -43,7 +43,12 @@ class IMRRDBNet(nn.Module):
             transformations = [nn.Linear(latent_nc, 2 * cur_num_rc) for _ in range(num_blocks)]
             lr_conv = B.conv_block(cur_num_rc, cur_num_rc, kernel_size=3, act_type=None)
 
-            style_block = B.StyleBlock(rb_blocks, transformations, lr_conv)
+            # Self-Attention blocks
+            attn_blocks = [B.Self_Attn(cur_num_rc, 'relu') for _ in range(num_blocks)]
+
+            # style_block = B.StyleBlock(rb_blocks, transformations, lr_conv)
+            style_block = B.StyleBlock(rb_blocks, transformations, attn_blocks, lr_conv)
+
             # The layer that produces the feature to concatenate with the next level
             hr_conv = B.conv_block(cur_num_rc, cur_num_rc, kernel_size=3, act_type=act_type)
             out_conv = B.conv_block(cur_num_rc, out_nc, kernel_size=3, act_type="tanh")

@@ -8,6 +8,49 @@ from torch.nn.utils import weight_norm
 ####################
 
 
+class Self_Attn(nn.Module):
+    """ Self attention Layer"""
+
+    def __init__(self, in_dim, activation):
+        super(Self_Attn, self).__init__()
+        self.chanel_in = in_dim
+        self.activation = activation
+
+        self.query_conv = nn.Conv2d(
+            in_channels=in_dim, out_channels=in_dim//8, kernel_size=1)
+        self.key_conv = nn.Conv2d(
+            in_channels=in_dim, out_channels=in_dim//8, kernel_size=1)
+        self.value_conv = nn.Conv2d(
+            in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, x):
+        """
+            inputs :
+                x : input feature maps( B X C X W X H)
+            returns :
+                out : self attention value + input feature 
+                attention: B X N X N (N is Width*Height)
+        """
+        m_batchsize, C, width, height = x.size()
+        proj_query = self.query_conv(x).view(
+            m_batchsize, -1, width*height).permute(0, 2, 1)  # B X CX(N)
+        proj_key = self.key_conv(x).view(
+            m_batchsize, -1, width*height)  # B X C x (*W*H)
+        energy = torch.bmm(proj_query, proj_key)  # transpose check
+        attention = self.softmax(energy)  # BX (N) X (N)
+        proj_value = self.value_conv(x).view(
+            m_batchsize, -1, width*height)  # B X C X N
+
+        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
+        out = out.view(m_batchsize, C, width, height)
+
+        out = self.gamma*out + x
+        return out, attention
+
+
 def act(act_type, inplace=True, neg_slope=0.2):
     act_type = act_type.lower()
     if act_type == 'leakyrelu':
@@ -15,7 +58,8 @@ def act(act_type, inplace=True, neg_slope=0.2):
     elif act_type == 'tanh':
         layer = nn.Tanh()
     else:
-        raise NotImplementedError('activation layer [{:s}] is not found'.format(act_type))
+        raise NotImplementedError(
+            'activation layer [{:s}] is not found'.format(act_type))
     return layer
 
 
@@ -54,7 +98,8 @@ def sequential(*args):
     # Flatten Sequential. It unwraps nn.Sequential.
     if len(args) == 1:
         if isinstance(args[0], OrderedDict):
-            raise NotImplementedError('sequential does not support OrderedDict input.')
+            raise NotImplementedError(
+                'sequential does not support OrderedDict input.')
         return args[0]  # No sequential is needed.
     modules = []
     for module in args:
@@ -82,7 +127,8 @@ def conv_block(in_nc, out_nc, kernel_size, dilation=1, bias=True, pad_type='zero
 def upconv_block(in_nc, out_nc, upscale_factor=2, kernel_size=3, bias=True, pad_type='zero', act_type='leakyrelu',
                  mode='nearest'):
     upsample = nn.Upsample(scale_factor=upscale_factor, mode=mode)
-    conv = conv_block(in_nc, out_nc, kernel_size, bias=bias, pad_type=pad_type, act_type=act_type)
+    conv = conv_block(in_nc, out_nc, kernel_size, bias=bias,
+                      pad_type=pad_type, act_type=act_type)
     return sequential(upsample, conv)
 
 
@@ -96,11 +142,16 @@ class ResidualDenseBlock(nn.Module):
     def __init__(self, nc, kernel_size=3, gc=32, bias=True, pad_type='zero', act_type='leakyrelu'):
         super(ResidualDenseBlock, self).__init__()
         # gc: growth channel, i.e. intermediate channels
-        self.conv1 = conv_block(nc, gc, kernel_size, bias=bias, pad_type=pad_type, act_type=act_type)
-        self.conv2 = conv_block(nc+gc, gc, kernel_size, bias=bias, pad_type=pad_type, act_type=act_type)
-        self.conv3 = conv_block(nc+2*gc, gc, kernel_size, bias=bias, pad_type=pad_type, act_type=act_type)
-        self.conv4 = conv_block(nc+3*gc, gc, kernel_size, bias=bias, pad_type=pad_type, act_type=act_type)
-        self.conv5 = conv_block(nc+4*gc, nc, 3, bias=bias, pad_type=pad_type, act_type=None)
+        self.conv1 = conv_block(
+            nc, gc, kernel_size, bias=bias, pad_type=pad_type, act_type=act_type)
+        self.conv2 = conv_block(nc+gc, gc, kernel_size,
+                                bias=bias, pad_type=pad_type, act_type=act_type)
+        self.conv3 = conv_block(nc+2*gc, gc, kernel_size,
+                                bias=bias, pad_type=pad_type, act_type=act_type)
+        self.conv4 = conv_block(nc+3*gc, gc, kernel_size,
+                                bias=bias, pad_type=pad_type, act_type=act_type)
+        self.conv5 = conv_block(nc+4*gc, nc, 3, bias=bias,
+                                pad_type=pad_type, act_type=None)
 
     def forward(self, x):
         x1 = self.conv1(x)
@@ -115,8 +166,10 @@ class ScalingLayer(nn.Module):
     # For rescaling the input to vgg16
     def __init__(self):
         super(ScalingLayer, self).__init__()
-        self.register_buffer('shift', torch.Tensor([-.030, -.088, -.188])[None, :, None, None])
-        self.register_buffer('scale', torch.Tensor([.458, .448, .450])[None, :, None, None])
+        self.register_buffer('shift', torch.Tensor(
+            [-.030, -.088, -.188])[None, :, None, None])
+        self.register_buffer('scale', torch.Tensor(
+            [.458, .448, .450])[None, :, None, None])
 
     def forward(self, inp):
         return (inp - self.shift) / self.scale
@@ -133,6 +186,7 @@ class RerangeLayer(nn.Module):
 
 class NetLinLayer(nn.Module):
     ''' A single linear layer used as placeholder for LPIPS learnt weights '''
+
     def __init__(self):
         super(NetLinLayer, self).__init__()
         self.weight = None
@@ -150,9 +204,12 @@ class RRDB(nn.Module):
 
     def __init__(self, nc, kernel_size=3, gc=32, bias=True, pad_type='zero', act_type='leakyrelu'):
         super(RRDB, self).__init__()
-        self.RDB1 = ResidualDenseBlock(nc, kernel_size, gc, bias, pad_type, act_type)
-        self.RDB2 = ResidualDenseBlock(nc, kernel_size, gc, bias, pad_type, act_type)
-        self.RDB3 = ResidualDenseBlock(nc, kernel_size, gc, bias, pad_type, act_type)
+        self.RDB1 = ResidualDenseBlock(
+            nc, kernel_size, gc, bias, pad_type, act_type)
+        self.RDB2 = ResidualDenseBlock(
+            nc, kernel_size, gc, bias, pad_type, act_type)
+        self.RDB3 = ResidualDenseBlock(
+            nc, kernel_size, gc, bias, pad_type, act_type)
 
     def forward(self, x):
         out = self.RDB1(x)
@@ -166,13 +223,14 @@ class StyleBlock(nn.Module):
     Style Block: Rescale each RRDB output
     '''
 
-    def __init__(self, rrdbs, transformations, lr_conv):
+    def __init__(self, rrdbs, transformations, attn_blocks, lr_conv):
         super(StyleBlock, self).__init__()
         assert len(rrdbs) == len(transformations)
         self.nb = len(rrdbs)
         for i, rrdb in enumerate(rrdbs):
             self.add_module("%d" % i, rrdb)
             self.add_module("transform_%d" % i, transformations[i])
+            self.add_module("attn_%d" % i, attn_blocks[i])
         self.lr_conv = lr_conv
 
     def forward(self, x, x_feat):
@@ -181,7 +239,8 @@ class StyleBlock(nn.Module):
             tran_out = getattr(self, "transform_%d" % i)(x_feat)
             bs, nc, w, h = rrdb_out.shape
             norm_layer = nn.InstanceNorm2d(nc, affine=False)
-            x = (1. + tran_out[:, :nc].reshape(bs, nc, 1, 1)).expand(bs, nc, w, h) * norm_layer(rrdb_out) + \
+            norm_out = (1. + tran_out[:, :nc].reshape(bs, nc, 1, 1)).expand(bs, nc, w, h) * norm_layer(rrdb_out) + \
                 tran_out[:, nc:].reshape(bs, nc, 1, 1).expand(bs, nc, w, h)
+            x = getattr(self, "attn_%d" % i)(norm_out)
         out = self.lr_conv(x)
         return out
