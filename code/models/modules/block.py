@@ -241,6 +241,6 @@ class StyleBlock(nn.Module):
             norm_layer = nn.InstanceNorm2d(nc, affine=False)
             norm_out = (1. + tran_out[:, :nc].reshape(bs, nc, 1, 1)).expand(bs, nc, w, h) * norm_layer(rrdb_out) + \
                 tran_out[:, nc:].reshape(bs, nc, 1, 1).expand(bs, nc, w, h)
-            x = getattr(self, "attn_%d" % i)(norm_out)
+            x, attention = getattr(self, "attn_%d" % i)(norm_out)
         out = self.lr_conv(x)
         return out
